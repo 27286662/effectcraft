@@ -1290,6 +1290,7 @@ Window
   ---
   Create Nulls From Paths | window.panel {"panel":"createNullsFromPaths"}
   VR Comp Editor | window.panel {"panel":"vrCompEditor"}
+  Math / LaTeX | window.panel {"panel":"mathLatex"}
   @dynamic:scriptPanels
 Help
   EffectCraft Help... | help.docs {"page":"help"} | F1

@@ -64,6 +64,8 @@ pub mod viewer_text;
 pub mod viewer_tools;
 pub mod viewers;
 pub mod waveform;
+// declaring our module for latex math panel
+pub mod math_latex_panel;
 
 use crate::i18n::tr;
 use effectcraft_engine::Session;
@@ -299,6 +301,8 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, p: PanelKind, rect: Rec
         PanelKind::ContentAwareFill => content_fill_panel::show(app, ui, rect),
         PanelKind::CreateNullsFromPaths => path_vr_panels::create_nulls(app, ui, rect),
         PanelKind::VrCompEditor => path_vr_panels::vr_editor(app, ui, rect),
+        // Our Latex panel for displaying mathematical equations
+        PanelKind::MathLatex => math_latex_panel::show(app, ui, rect),
     }
 }
 
