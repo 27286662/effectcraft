@@ -44,14 +44,17 @@ use crate::EffectcraftApp;
 // }
 
 // new lines from 47 to 65 improvment on the render image
-fn render_latex_png(latex_src: &str) -> Result<Vec<u8>, String> {
+// fn render_latex_png(latex_src: &str) -> Result<Vec<u8>, String> {
+fn render_latex_png(latex_src: &str, color: &str) -> Result<Vec<u8>, String> {
     use latex_rust::Dim;
 
     let font = MathFont::stix_two_math()
         .map_err(|e| format!("Font error: {e}"))?;
 
     // Black for the composition background.
-    let colored_latex = format!(r"{{\color{{black}} {latex_src}}}");
+    // let colored_latex = format!(r"{{\color{{black}} {latex_src}}}");
+    // Apply the color selected in the Math / LaTeX panel.
+    let colored_latex = format!(r"{{\color{{{color}}} {latex_src}}}");
 
     let mut opts = PngOptions::new();
 
@@ -70,6 +73,7 @@ fn insert_latex_layer(
     app: &mut EffectcraftApp,
     ctx: &egui::Context,
     latex_src: &str,
+    color: &str,
 ) -> Result<(), String> {
     use std::path::Path;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -100,7 +104,8 @@ fn insert_latex_layer(
         .map_err(|e| format!("Cannot create assets directory: {e}"))?;
 
     // Render the current equation.
-    let png_bytes = render_latex_png(latex_src)?;
+    // let png_bytes = render_latex_png(latex_src)?;
+    let png_bytes = render_latex_png(latex_src, color)?;
 
     // Unique filename: each insertion remains independent.
     let timestamp = SystemTime::now()
@@ -184,6 +189,13 @@ pub(crate) fn show(app: &mut EffectcraftApp, ui: &mut Ui, _rect: Rect) // _app -
     const ERROR_ID: &str = "math_latex/error";
     const TEXTURE_ID: &str = "math_latex/texture";
 
+    // Store the selected equation color.
+    let layer_color_id = ui.make_persistent_id("math_latex/layer_color");
+
+    let mut layer_color = ui.ctx().data_mut(|data| {
+        data.get_persisted::<String>(layer_color_id)
+    }).unwrap_or_else(|| "black".to_string());
+
     // let ctx = ui.ctx().clone();
     // Stable identifiers for the editor and preview.
     let source_id = ui.make_persistent_id(SOURCE_ID);
@@ -206,6 +218,24 @@ pub(crate) fn show(app: &mut EffectcraftApp, ui: &mut Ui, _rect: Rect) // _app -
             .hint_text(r"\frac{1}{2}, \pi^\pm, e^- + e^+ \to \mu^- + \mu^+"),
     );
 
+    // new lines from 222 too 237 
+    // Equation color selector.
+    ui.horizontal(|ui| {
+        ui.label("Layer color:");
+
+        ui.radio_value(
+            &mut layer_color,
+            "black".to_string(),
+            "Black",
+        );
+
+        ui.radio_value(
+            &mut layer_color,
+            "white".to_string(),
+            "White",
+        );
+    });
+
     ui.horizontal(|ui| {
         if ui.button("Render preview").clicked() {
             match render_latex_texture(&ui.ctx(), &source) {
@@ -226,7 +256,8 @@ pub(crate) fn show(app: &mut EffectcraftApp, ui: &mut Ui, _rect: Rect) // _app -
 
     // from 191 too 204
     if ui.button("Insert into composition").clicked() {
-    match insert_latex_layer(app, ui.ctx(), &source) {
+    // match insert_latex_layer(app, ui.ctx(), &source) {
+    match insert_latex_layer(app, ui.ctx(), &source, &layer_color) {
         Ok(()) => {
             ui.ctx().data_mut(|d| {
                 d.remove::<String>(error_id);
@@ -240,8 +271,13 @@ pub(crate) fn show(app: &mut EffectcraftApp, ui: &mut Ui, _rect: Rect) // _app -
         }
     }
 
+    // ui.ctx().data_mut(|d| {
+    //     d.insert_persisted(source_id, source.clone());
+    // });
+    // added color almacenamient
     ui.ctx().data_mut(|d| {
-        d.insert_persisted(source_id, source.clone());
+    d.insert_persisted(source_id, source.clone());
+    d.insert_persisted(layer_color_id, layer_color);
     });
 
     if let Some(err) = ui.ctx().data_mut(|d| d.get_temp::<String>(error_id)) {
