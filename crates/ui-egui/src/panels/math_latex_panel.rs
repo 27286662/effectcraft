@@ -45,7 +45,8 @@ use crate::EffectcraftApp;
 
 // new lines from 47 to 65 improvment on the render image
 // fn render_latex_png(latex_src: &str) -> Result<Vec<u8>, String> {
-fn render_latex_png(latex_src: &str, color: &str) -> Result<Vec<u8>, String> {
+// fn render_latex_png(latex_src: &str, color: &str) -> Result<Vec<u8>, String> {
+    fn render_latex_png(latex_src: &str, color: &str, font_size_pt: i64, ) -> Result<Vec<u8>, String> {
     use latex_rust::Dim;
 
     let font = MathFont::stix_two_math()
@@ -59,7 +60,8 @@ fn render_latex_png(latex_src: &str, color: &str) -> Result<Vec<u8>, String> {
     let mut opts = PngOptions::new();
 
     // Much better quality for imported layer:
-    opts.font_size_pt = Dim::from_i64(48);  // try 48 first
+    // opts.font_size_pt = Dim::from_i64(48);  // try 48 first
+    opts.font_size_pt = Dim::from_i64(font_size_pt);
     opts.dpi = Dim::from_i64(400);          // try 300–600
     opts.display = true;                    // nicer for standalone equations
 
@@ -69,12 +71,15 @@ fn render_latex_png(latex_src: &str, color: &str) -> Result<Vec<u8>, String> {
     
 
 // from 32 too 110
+// fn insert_latex_layer(app: &mut EffectcraftApp, ctx: &egui::Context, latex_src: &str, color: &str, -> Result<(), String> {
 fn insert_latex_layer(
     app: &mut EffectcraftApp,
     ctx: &egui::Context,
     latex_src: &str,
     color: &str,
+    font_size_pt: i64,
 ) -> Result<(), String> {
+
     use std::path::Path;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -105,7 +110,8 @@ fn insert_latex_layer(
 
     // Render the current equation.
     // let png_bytes = render_latex_png(latex_src)?;
-    let png_bytes = render_latex_png(latex_src, color)?;
+    // let png_bytes = render_latex_png(latex_src, color)?;
+    let png_bytes = render_latex_png(latex_src, color, font_size_pt)?;
 
     // Unique filename: each insertion remains independent.
     let timestamp = SystemTime::now()
@@ -151,17 +157,22 @@ fn insert_latex_layer(
     Ok(())
 }
 
-fn render_latex_texture(
-    ctx: &egui::Context,
-    latex_src: &str,
-) -> Result<TextureHandle, String> {
+// fn render_latex_texture(
+//     ctx: &egui::Context,
+//     latex_src: &str,
+// ) -> Result<TextureHandle, String> {
+    fn render_latex_texture(
+        ctx: &egui::Context,
+        latex_src: &str,
+        color: &str,
+    ) -> Result<TextureHandle, String> {
     let font = MathFont::stix_two_math()
         .map_err(|e| format!("Font error: {e}"))?;
 
     // let png_bytes = latex_to_png(latex_src, &font, &PngOptions::new())
     //     .map_err(|e| format!("LaTeX render error: {e}"))?;
     // Render the equation in white for EffectCraft's dark theme. 
-    let colored_latex = format!(r"{{\color{{white}} {latex_src}}}");
+    let colored_latex = format!(r"{{\color{{{color}}} {latex_src}}}"); // let colored_latex = format!(r"{{\color{{white}} {latex_src}}}");
 
     let png_bytes = latex_to_png(&colored_latex, &font, &PngOptions::new())
         .map_err(|e| format!("LaTeX render error: {e}"))?;
@@ -188,6 +199,13 @@ pub(crate) fn show(app: &mut EffectcraftApp, ui: &mut Ui, _rect: Rect) // _app -
     const SOURCE_ID: &str = "math_latex/source";
     const ERROR_ID: &str = "math_latex/error";
     const TEXTURE_ID: &str = "math_latex/texture";
+
+    // Equation size, remembered across UI frames.
+    let font_size_id = ui.make_persistent_id("math_latex/font_size");
+
+    let mut font_size_pt = ui.ctx().data_mut(|data| {
+        data.get_persisted::<i64>(font_size_id)
+    }).unwrap_or(32);
 
     // Store the selected equation color.
     let layer_color_id = ui.make_persistent_id("math_latex/layer_color");
@@ -220,6 +238,27 @@ pub(crate) fn show(app: &mut EffectcraftApp, ui: &mut Ui, _rect: Rect) // _app -
 
     // new lines from 222 too 237 
     // Equation color selector.
+    // ui.horizontal(|ui| {
+    //     ui.label("Layer color:");
+
+    //     ui.add(
+    //         egui::Slider::new(&mut font_size_pt, 24..=96)
+    //         .text("Equation size (pt)")
+    //     );
+
+    //     ui.radio_value(
+    //         &mut layer_color,
+    //         "black".to_string(),
+    //         "Black",
+    //     );
+
+    //     ui.radio_value(
+    //         &mut layer_color,
+    //         "white".to_string(),
+    //         "White",
+    //     );
+    // });
+    // Equation color selector.
     ui.horizontal(|ui| {
         ui.label("Layer color:");
 
@@ -236,9 +275,16 @@ pub(crate) fn show(app: &mut EffectcraftApp, ui: &mut Ui, _rect: Rect) // _app -
         );
     });
 
+    // Equation size selector, displayed on a separate row.
+    ui.add(
+        egui::Slider::new(&mut font_size_pt, 16..=96)
+            .text("Equation size (pt)")
+    );
+
     ui.horizontal(|ui| {
         if ui.button("Render preview").clicked() {
-            match render_latex_texture(&ui.ctx(), &source) {
+            // match render_latex_texture(&ui.ctx(), &source) {
+            match render_latex_texture(ui.ctx(), &source, &layer_color) {
                 Ok(texture) => {
                     ui.ctx().data_mut(|d| {
                         d.insert_temp(texture_id, texture);
@@ -257,7 +303,7 @@ pub(crate) fn show(app: &mut EffectcraftApp, ui: &mut Ui, _rect: Rect) // _app -
     // from 191 too 204
     if ui.button("Insert into composition").clicked() {
     // match insert_latex_layer(app, ui.ctx(), &source) {
-    match insert_latex_layer(app, ui.ctx(), &source, &layer_color) {
+    match insert_latex_layer(app, ui.ctx(), &source, &layer_color, font_size_pt,) {
         Ok(()) => {
             ui.ctx().data_mut(|d| {
                 d.remove::<String>(error_id);
@@ -277,7 +323,8 @@ pub(crate) fn show(app: &mut EffectcraftApp, ui: &mut Ui, _rect: Rect) // _app -
     // added color almacenamient
     ui.ctx().data_mut(|d| {
     d.insert_persisted(source_id, source.clone());
-    d.insert_persisted(layer_color_id, layer_color);
+    d.insert_persisted(layer_color_id, layer_color.clone());
+    d.insert_persisted(font_size_id, font_size_pt);
     });
 
     if let Some(err) = ui.ctx().data_mut(|d| d.get_temp::<String>(error_id)) {
@@ -297,7 +344,21 @@ pub(crate) fn show(app: &mut EffectcraftApp, ui: &mut Ui, _rect: Rect) // _app -
             size *= scale;
         }
 
-        ui.image((texture.id(), size));
+        // ui.image((texture.id(), size));
+
+        // Choose a contrasting background for the equation preview.
+        let preview_bg = if layer_color == "black" {
+            egui::Color32::from_rgb(245, 245, 245)
+        } else {
+            egui::Color32::from_rgb(35, 35, 35)
+        };
+
+        egui::Frame::default() 
+            .fill(preview_bg)
+            .show(ui, |ui| {
+                ui.image((texture.id(), size));
+            });
+
     } else {
         ui.weak("Aún no hay vista previa. Pulsa \"Render preview\".");
     }
